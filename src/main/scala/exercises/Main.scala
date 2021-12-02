@@ -24,6 +24,7 @@ object AOC2021App extends CommandIOApp(
 
   def runExercise(exNumber:Int, input:String):IO[ExitCode] = exNumber match {
     case 1 => day1.solve(input)
+    case 2 => day2.solve(input)
     case _ => IO.println(s"Invalid exNumber $exNumber") *> IO(ExitCode.Error)
   }
 
