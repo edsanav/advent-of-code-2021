@@ -12,9 +12,10 @@ object day2 {
 
   def solve[F[_] : Console : Applicative](input: String): F[ExitCode] =
     val directions = input.split("\n").to(LazyList)
-    val part1 = math.multiplyExact.tupled(move(directions, movement1))
-    val part2 = math.multiplyExact.tupled(move(directions, movement2))
-    Console[F].println((part1, part2)) *> Applicative[F].pure(ExitCode.Success)
+    val r1 = move(directions, (0,0), movement1, x => x)
+    val r2 = move(directions, (0,0,0), movement2, (x,y,aim) => (x,y))
+
+    Console[F].println((r1._1 * r1._2, r2._1 * r2._2)) *> Applicative[F].pure(ExitCode.Success)
 
 
   def toInstructions(l: LazyList[String]): LazyList[(String, Integer)] =
@@ -23,11 +24,11 @@ object day2 {
       case _ => None
     }
 
-  def movement1(operation: String, n: Int)(x: Int, y: Int, aim: Int): (Int, Int, Int) = {
+  def movement1(operation: String, n: Int)(x: Int, y: Int): (Int, Int) = {
     operation match {
-      case "forward" => (x + n, y, aim)
-      case "up" => (x, y - n, aim)
-      case "down" => (x, y + n, aim)
+      case "forward" => (x + n, y)
+      case "up" => (x, y - n)
+      case "down" => (x, y + n)
     }
   }
 
@@ -40,11 +41,9 @@ object day2 {
   }
 
 
-  def move(l: LazyList[String], movement: (String, Int) => (Int, Int, Int) => (Int, Int, Int)): (Int, Int) = {
-    val finalPosition = toInstructions(l).foldLeft((0, 0, 0)) {
-      case ((x, y, aim), (direction, n)) => movement(direction, n)(x, y, aim)
-    }
-    (finalPosition._1, finalPosition._2)
+  def move[A] (l: LazyList[String], origin:A, movement: (String, Int) => A => A, out:A => (Int, Int)): (Int, Int) = {
+    val finalPosition = toInstructions(l).foldLeft(origin) {case (z, (direction, n)) => movement(direction, n)(z)}
+    out(finalPosition)
   }
 
 
