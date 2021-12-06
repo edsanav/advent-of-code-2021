@@ -25,13 +25,14 @@ object AOC2021App extends CommandIOApp(
   def runExercise(exNumber:Int, input:String):IO[ExitCode] = exNumber match {
     case 1 => day1.solve(input)
     case 2 => day2.solve(input)
+    case 3 => day3.solve(input)
     case _ => IO.println(s"Invalid exNumber $exNumber") *> IO(ExitCode.Error)
   }
 
   override def main: Opts[IO[ExitCode]] =
     ((fileOpt orElse inputStrOpt), exOpts).tupled.map{
       case (InputFile(f), Exercise(n)) =>
-        IO.println(s"exercise $n input file $f")  *> io.load(f).use{s=> runExercise(n, io.asInput(s))}
+        IO.println(s"exercise $n input file $f")  *> aux.load(f).use{ s=> runExercise(n, aux.asInput(s))}
       case (InputString(s), Exercise(n)) =>
         IO.println(s"exercise $n input string $s")  *> runExercise(n, s)
     }

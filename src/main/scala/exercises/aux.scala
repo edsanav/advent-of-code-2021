@@ -9,7 +9,7 @@ import cats.effect.std.Console
 
 import scala.io.{BufferedSource, Source}
 
-object io {
+object aux {
 
   //TODO abstract over F instead of having an explicit IO here
   def load(path: String): Resource[IO, BufferedSource] =
