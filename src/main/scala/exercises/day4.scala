@@ -7,6 +7,8 @@ import cats.effect.std.Console
 import cats.syntax.apply.catsSyntaxApply
 import cats.{Applicative, ApplicativeError}
 
+import scala.annotation.unused
+
 
 object day4 {
 
@@ -34,8 +36,6 @@ object day4 {
 
     val isChecked:Boolean = rows.exists(_.isChecked) || columns.exists(_.isChecked)
 
-    def anyRowComplete: Boolean = rows.exists(_.isChecked)
-    def anyColumnComplete: Boolean = columns.exists(_.isChecked)
   }
 
   object Board{
@@ -53,20 +53,33 @@ object day4 {
     (h.split(",").map(_.toInt).toList, boards)
   }
 
-  def firstChecked(boards:List[Board]):Option[Board] = {
-    boards.filter(_.isChecked) match {
+  type ConditionCheck = (List[Board], List[Board], Int) => Option[Int]
+
+  def firstChecked(@unused oldBoards:List[Board], newBoards:List[Board], n:Int):Option[Int] = {
+    newBoards.filter(_.isChecked) match {
       case Nil => None
-      case x::_ => Some(x)
+      case x::_ => Some(x.unchecked.sum*n)
     }
   }
-  
-  def nextNum(num:Int, endCondition:List[Board] => Option[Board]):State[List[Board], Option[Board]] = State{ boards =>
-    val nextBoards = boards.map(_.draw(num))
-    val winner = endCondition(nextBoards)
-    (nextBoards, winner)
+
+  def lastChecked(oldBoards:List[Board], newBoards:List[Board], n:Int):Option[Int] = {
+    if (newBoards.exists(!_.isChecked)){
+      None
+    }else{
+      oldBoards.filter(!_.isChecked) match {
+        case x::Nil => Some(x.draw(n).unchecked.sum*n)
+        case _ => None
+      }
+    }
   }
 
-  def execute(input:List[Int], endCondition:List[Board] => Option[Board]):State[List[Board], Option[(Board, Int)]] ={
+  def nextNum(num:Int, endCondition:ConditionCheck):State[List[Board], Option[Int]] = State{ boards =>
+    val nextBoards = boards.map(_.draw(num))
+    val result = endCondition(boards, nextBoards, num)
+    (nextBoards, result)
+  }
+
+  def execute(input:List[Int], endCondition:ConditionCheck):State[List[Board], Option[Int]] ={
     input match {
       case scala.Nil => State.get.map(_ => scala.None)
       case x::xs => for {
@@ -74,23 +87,18 @@ object day4 {
         current <- State.get
       } yield { anyWinner match {
         case None => execute(xs, endCondition).runA(current).value
-        case Some(w) => Some((w,x))
+        case Some(result) => Some(result)
       }
       }
     }
   }
 
-  def computeResult(maybeWinner:Option[(Board, Int)]):Option[Int] = maybeWinner match {
-    case None => None
-    case Some((b:Board, n)) => Some((b.unchecked.sum*n))
-  }
-
   def solve[F[_] : Console : Applicative](input: String): F[ExitCode] =
     val (gameInput:List[Int], boards:List[Board]) = loadGame(input)
-    val part1 = computeResult(execute(gameInput, firstChecked).runA(boards).value)
-    val part2 = computeResult(execute(gameInput, firstChecked).runA(boards).value)
+    val part1 = execute(gameInput, firstChecked).runA(boards).value
+    val part2 = execute(gameInput, lastChecked).runA(boards).value
 
-    Console[F].println((part1, part2)) *> Applicative[F].pure(ExitCode.Success)
+    Console[F].println((part1.get, part2.get)) *> Applicative[F].pure(ExitCode.Success)
 
 
 
