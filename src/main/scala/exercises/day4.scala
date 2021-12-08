@@ -53,6 +53,7 @@ object day4 {
     (h.split(",").map(_.toInt).toList, boards)
   }
 
+  //TODO abstract this a bit
   type ConditionCheck = (List[Board], List[Board], Int) => Option[Int]
 
   def firstChecked(@unused oldBoards:List[Board], newBoards:List[Board], n:Int):Option[Int] = {
