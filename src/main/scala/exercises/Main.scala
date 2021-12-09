@@ -28,6 +28,8 @@ object AOC2021App extends CommandIOApp(
     case 3 => day3.solve(input)
     case 4 => day4.solve(input)
     case 5 => day5.solve(input)
+    case 6 => day6.solve(input)
+    case 7 => day7.solve(input)
     case _ => IO.println(s"Invalid exNumber $exNumber") *> IO(ExitCode.Error)
   }
 
