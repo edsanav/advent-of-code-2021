@@ -19,23 +19,29 @@ object day6 {
     }
   }
 
-
-
-
   @tailrec
-  def computeFishPopulation(days:Int, currentFishes:List[Fish]):Int = {
-    days match {
-      case 0 => currentFishes.length
-      case _ => computeFishPopulation(days-1, currentFishes.flatMap(f => f.nextDay))
+  def computeFishPopulation(days:Int, population:Map[Int, BigInt]):BigInt = {
+    if (days==0){
+      population.values.sum
+    }else{
+      val newPop = population.map{(timer, amount) => (timer-1, amount)}
+      val newGen = newPop.getOrElse(-1, BigInt(0)) // Amound that produced new offspring
+      val nonAdults = newPop - -1 // Remove those that produced a new offspring
+      val finalMap = nonAdults
+        + (6->(nonAdults.getOrElse(6, BigInt(0)) + newGen)) // Old fishes in new reproductive cycle
+        + (8->(nonAdults.getOrElse(8, BigInt(0)) + newGen)) // New offspring
+      computeFishPopulation(days-1, finalMap)
     }
   }
 
 
+
   def solve[F[_] : Console : Applicative](input: String): F[ExitCode] =
-    val initialPopulation = input.split("\n").head.split(",").map(_.toInt).toList.map(n => Fish(n))
+    val initialTimers = input.split("\n").head.split(",").map(_.toInt).toList
+    val initialPopulation = initialTimers.groupMapReduce(p => p)(_ => BigInt(1))(_+_)
     val part1 = computeFishPopulation(80, initialPopulation)
-//    val part2 = computeFishPopulation(256, initialPopulation) // Too slow
-    Console[F].println((part1, 0)) *> Applicative[F].pure(ExitCode.Success)
+    val part2 = computeFishPopulation(256, initialPopulation)
+    Console[F].println((part1, part2)) *> Applicative[F].pure(ExitCode.Success)
 
 
 }
