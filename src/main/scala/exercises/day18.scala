@@ -6,15 +6,31 @@ import cats.effect.std.Console
 import cats.implicits.*
 
 import scala.annotation.tailrec
+import scala.util.matching.Regex
 
 object day18 {
 
   val testString = "[[[[[9,8],1],2],3],4]"
+  val numPattern = raw"(\\d+)".r
 
   trait Tree
   case class Node(value:Int) extends Tree
   case class Branch(l:Tree, r:Tree) extends Tree
 
+
+  def parseNext(next:List[String], stack:List[Tree]):Tree = {
+    next match {
+      case ","::xs => Branch(stack.head, parseNext(xs, stack.tail))
+      case numPattern(n)::xs => parseNext(xs, Node(n.toInt)::stack)
+      case "]"::xs =>
+        val i::j::other = stack
+        parseNext(next, Branch(i,j)::other)
+      //    case "["::xs => parseNext(xs, stack)
+      //    case "["::numPattern(n)::","::xs => Branch(Node(n.toInt), parseNext(xs, unclosed))
+      //    case ","::numPattern(n)::"]"::xs => Branch()
+    }
+
+  }
 
   def solve[F[_] : Console : Applicative](input: String): F[ExitCode] =
     val lines = input.split("\n").to(LazyList)
