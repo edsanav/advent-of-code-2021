@@ -19,12 +19,16 @@ object day18 {
 
 
   def parseNext(next:List[String], stack:List[Tree]):Tree = {
+    println(next)
     next match {
+      case ""::Nil => stack.head
       case ","::xs => Branch(stack.head, parseNext(xs, stack.tail))
       case numPattern(n)::xs => parseNext(xs, Node(n.toInt)::stack)
       case "]"::xs =>
         val i::j::other = stack
         parseNext(next, Branch(i,j)::other)
+      case "["::xs =>  parseNext(xs, stack)
+      case _ => stack.head
       //    case "["::xs => parseNext(xs, stack)
       //    case "["::numPattern(n)::","::xs => Branch(Node(n.toInt), parseNext(xs, unclosed))
       //    case ","::numPattern(n)::"]"::xs => Branch()
