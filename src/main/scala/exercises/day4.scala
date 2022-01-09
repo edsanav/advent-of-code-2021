@@ -7,16 +7,17 @@ import cats.effect.std.Console
 import cats.syntax.apply.catsSyntaxApply
 import cats.{Applicative, ApplicativeError}
 
-import scala.annotation.unused
-
 
 object day4 {
 
+  //Either a row or a column
   case class Checkable(values:NonEmptyList[(Int, Boolean)]){
     val indexed:NonEmptyMap[Int,(Int,Boolean)] = values.zipWithIndex.map{(item, i) => (i,item)}.toNem
     lazy val checked:List[Int] = values.filter(_._2).map(_._1)
     lazy val unchecked:List[Int] = values.filter(!_._2).map(_._1)
     val isChecked:Boolean = values.forall(_._2)
+
+    //When drawing a number, new checkeable switching isActive in certain position if number is equal
     def draw(num:Int):Checkable = Checkable(values.map{(x, isActive) => if (x==num) (x, true) else (x, isActive)})
     def apply(num:Int):Option[(Int,Boolean)] = indexed(num)
   }
@@ -53,42 +54,52 @@ object day4 {
     (h.split(",").map(_.toInt).toList, boards)
   }
 
-  //TODO abstract this a bit
-  type ConditionCheck = (List[Board], List[Board], Int) => Option[Int]
 
-  def firstChecked(@unused oldBoards:List[Board], newBoards:List[Board], n:Int):Option[Int] = {
+  // State (State[S, A]) monad
+  // represent functions of type S => (S, A) where S is the type of the state and a is the type of result.
+  // Given its a monad, it follows monad laws. Also it has certain functionalities (State.get, State.set, etc)
+
+  // Defined step to stop on first bingo.
+  def checkFirstWin(n:Int):State[List[Board], Option[Int]] = State{ boards =>
+    val newBoards = boards.map(_.draw(n))
     newBoards.filter(_.isChecked) match {
-      case Nil => None
-      case x::_ => Some(x.unchecked.sum*n)
+      case Nil => (newBoards, None)
+      case x::_ => (newBoards, Some(x.unchecked.sum*n))
     }
   }
 
-  def lastChecked(oldBoards:List[Board], newBoards:List[Board], n:Int):Option[Int] = {
+  // Defined step to stop on last bingo.
+  def checkLastWin(n:Int):State[List[Board], Option[Int]] = State{ boards =>
+    val newBoards = boards.map(_.draw(n))
     if (newBoards.exists(!_.isChecked)){
-      None
+      (newBoards, None)
     }else{
-      oldBoards.filter(!_.isChecked) match {
-        case x::Nil => Some(x.draw(n).unchecked.sum*n)
-        case _ => None
+      boards.filter(!_.isChecked) match {
+        case x::Nil => (newBoards, Some(x.draw(n).unchecked.sum*n))
+        case _ => (newBoards, None)
       }
     }
   }
 
-  def nextNum(num:Int, endCondition:ConditionCheck):State[List[Board], Option[Int]] = State{ boards =>
-    val nextBoards = boards.map(_.draw(num))
-    val result = endCondition(boards, nextBoards, num)
-    (nextBoards, result)
-  }
 
-  def execute(input:List[Int], endCondition:ConditionCheck):State[List[Board], Option[Int]] ={
+
+  def execute(input:List[Int], step:Int => State[List[Board], Option[Int]]):State[List[Board], Option[Int]] ={
     input match {
-      case scala.Nil => State.get.map(_ => scala.None)
+      // If empty, result is None (no result)
+      case scala.Nil => State.pure(None)
+      // If not...
       case x::xs => for {
-        anyWinner <- nextNum(x, endCondition)
-        current <- State.get
-      } yield { anyWinner match {
-        case None => execute(xs, endCondition).runA(current).value
-        case Some(result) => Some(result)
+        // ... apply next number, get result (this gets a new state but for comprehension extracts it directly)...
+        anyWinner <- step(x)
+        // ... and get actual state (new boards) from the state monad
+        currentBoards <- State.get
+      } yield {
+        // Then check result
+        anyWinner match {
+          // No final result reached yet, recursively call execute with remaining numbers and current state
+          case None => execute(xs, step).runA(currentBoards).value
+          // Final result reached, return final result
+          case Some(result) => Some(result)
       }
       }
     }
@@ -96,8 +107,8 @@ object day4 {
 
   def solve[F[_] : Console : Applicative](input: String): F[ExitCode] =
     val (gameInput:List[Int], boards:List[Board]) = loadGame(input)
-    val part1 = execute(gameInput, firstChecked).runA(boards).value
-    val part2 = execute(gameInput, lastChecked).runA(boards).value
+    val part1 = execute(gameInput, checkFirstWin).runA(boards).value
+    val part2 = execute(gameInput, checkLastWin).runA(boards).value
 
     Console[F].println((part1.get, part2.get)) *> Applicative[F].pure(ExitCode.Success)
 
